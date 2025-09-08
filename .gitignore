@@ -1,0 +1,36 @@
+# Archivos de Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+
+# Variables de entorno
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+
+# Directorios del sistema
+.DS_Store
+.vscode/
+.idea/
+
+# Node.js (si usas Node.js en el proyecto)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (si usas Python en el proyecto)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/

@@ -1,10 +1,6 @@
 # Configuración de providers
 terraform {
   required_providers {
-    railway = {
-      source  = "terraform-community-providers/railway"
-      version = "~> 0.5.0"
-    }
     doppler = {
       source  = "DopplerHQ/doppler"
       version = "~> 1.6.0"
@@ -12,89 +8,69 @@ terraform {
   }
 }
 
-# Configurar el provider de Railway
-provider "railway" {
-  token = var.railway_token
-}
-
 # Configurar el provider de Doppler
 provider "doppler" {
   doppler_token = var.doppler_token
 }
 
-# Import existing Railway project
-import {
-  to = railway_project.demo
-  id = "3adc1782-c73d-4e62-8fa4-25c35451b0df"
+# ========================================
+# PROYECTOS DOPPLER (dinámicos desde project_secrets)
+# ========================================
+
+# Crear proyectos dinámicamente basados en las keys de project_secrets
+resource "doppler_project" "projects" {
+  for_each = var.project_secrets
+  name     = each.key
 }
 
-# Railway Project - will be imported, not created
-resource "railway_project" "demo" {
-  name = "Demo Jorge TP"
+# Crear environments dinámicamente
+resource "doppler_environment" "environments" {
+  for_each = var.project_secrets
+  project  = doppler_project.projects[each.key].name
+  slug     = var.environment_name
+  name     = var.environment_name
 }
 
-# Crear nuevo environment "dev2-terraform"
-resource "railway_environment" "dev2" {
-  name       = "dev2-terraform"
-  project_id = railway_project.demo.id
+# Crear configuraciones dinámicamente
+resource "doppler_config" "configs" {
+  for_each    = var.project_secrets
+  project     = doppler_project.projects[each.key].name
+  environment = doppler_environment.environments[each.key].slug
+  name        = var.config_name
 }
 
-# Crear el servicio MongoDB Single Replica en dev 2
-resource "railway_service" "mongodb" {
-  name         = "mongodb-replica-dev2"
-  project_id   = railway_project.demo.id
-  source_image = "bitnami/mongodb:7.0"
+# ========================================
+# SECRETS DOPPLER (usando for_each anidado con notas y valores)
+# ========================================
+
+# Crear una lista de combinaciones proyecto-variable para los secrets
+locals {
+  project_secret_combinations = [
+    for project_name, secrets in var.project_secrets : [
+      for secret_name, secret_config in secrets : {
+        project       = project_name
+        secret_name   = secret_name
+        secret_config = secret_config
+        key           = "${project_name}_${secret_name}"
+      }
+    ]
+  ]
+  # Aplanar la lista anidada
+  project_secrets = flatten(local.project_secret_combinations)
 }
 
-# Variables para MongoDB Single Replica en dev 2 (Bitnami)
-# MongoDB variables are managed in dev2-variables.tf for the existing environment
-
-# Crear el servicio Hello World en dev 2
-resource "railway_service" "app" {
-  name         = "hello-world-dev2"
-  project_id   = railway_project.demo.id
-  source_image = "testcontainers/helloworld:latest"
-}
-
-# TCP Proxy para MongoDB is managed in dev2-variables.tf
-
-# Crear el proyecto en Doppler
-resource "doppler_project" "demo" {
-  name = "demo"
-}
-
-# Crear environment en Doppler para dev 2
-resource "doppler_environment" "dev2" {
-  project = doppler_project.demo.name
-  slug    = "dev2"
-  name    = "dev2"
-}
-
-# Crear configuración en Doppler para dev 2
-resource "doppler_config" "dev2" {
-  project     = doppler_project.demo.name
-  environment = doppler_environment.dev2.slug
-  name        = "dev2_backend"
-}
-
-# Secrets en Doppler para dev 2
-resource "doppler_secret" "mongodb_internal_url" {
-  project = doppler_project.demo.name
-  config  = doppler_config.dev2.name
-  name    = "MONGODB_INTERNAL_URL"
-  value   = "mongodb://admin:password123@mongodb-single-replica.railway.internal:27017/demo"
-}
-
-resource "doppler_secret" "mongodb_public_url" {
-  project = doppler_project.demo.name
-  config  = doppler_config.dev2.name
-  name    = "MONGODB_PUBLIC_URL"
-  value   = "mongodb://admin:password123@${railway_tcp_proxy.dev2_mongodb_public.domain}:${railway_tcp_proxy.dev2_mongodb_public.proxy_port}/demo"
-}
-
-resource "doppler_secret" "database_url" {
-  project = doppler_project.demo.name
-  config  = doppler_config.dev2.name
-  name    = "DATABASE_URL"
-  value   = "mongodb://admin:password123@${railway_tcp_proxy.dev2_mongodb_public.domain}:${railway_tcp_proxy.dev2_mongodb_public.proxy_port}/demo"
+# Crear secrets dinámicamente con valores por defecto y notas
+resource "doppler_secret" "secrets" {
+  for_each = {
+    for item in local.project_secrets : item.key => item
+  }
+  
+  project    = doppler_project.projects[each.value.project].name
+  config     = doppler_config.configs[each.value.project].name
+  name       = each.value.secret_name
+  value      = each.value.secret_config.value
+  visibility = each.value.secret_config.visibility
+  
+  # Nota: Los valores se establecen inicialmente por Terraform,
+  # pero pueden ser modificados manualmente en Doppler después
 }

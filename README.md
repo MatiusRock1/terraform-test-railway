@@ -1,113 +1,230 @@
-# Railway MongoDB Single Replica with Terraform
+# Terraform Doppler Configuration with Notes and Default Values
 
-Este proyecto despliega un MongoDB Single Replica Set en Railway usando Terraform, con integración a Doppler para manejo de secretos.
+Este proyecto de Terraform gestiona proyectos Doppler con secrets que incluyen valores por defecto y notas descriptivas.
 
-## 🏗️ Arquitectura
+## 🚀 Características
 
-- **MongoDB**: Single Replica Set con Bitnami MongoDB 7.0
-- **Railway**: Plataforma de despliegue cloud
-- **Terraform**: Infraestructura como código
-- **Doppler**: Manejo de secretos y variables de entorno
-- **TCP Proxy**: Acceso público a MongoDB
+- ✅ **Flexibilidad total**: Cada proyecto puede tener cualquier cantidad de secrets
+- ✅ **Nombres personalizados**: Los nombres de secrets son completamente configurables
+- ✅ **Valores por defecto**: Cada secret tiene un valor inicial seguro para development
+- ✅ **Notas descriptivas**: Documentación clara de qué hace cada secret
+- ✅ **Visibilidad configurable**: Control sobre si el secret es `masked` o `restricted`
+- ✅ **Ignore changes**: Los valores pueden ser modificados manualmente sin conflictos
+- ✅ **Estructura escalable**: Fácil agregar nuevos proyectos y secrets
+- ✅ **Proyectos dinámicos**: Los proyectos se crean automáticamente desde la configuración
+
+## 📊 Configuración Actual
+
+El sistema está configurado con **5 proyectos** que demuestran la flexibilidad:
+
+- **demo1**: 5 secrets (Backend API básico)
+- **demo2**: 7 secrets (E-commerce con más integraciones)
+- **demo3**: 4 secrets (Analytics minimalista)
+- **demo4**: 6 secrets (Microservicio OAuth)
+- **demo5**: 8 secrets (Payment Gateway completo)
+
+**Total: 30 secrets** distribuidos de forma flexible según las necesidades de cada proyecto.
 
 ## 📁 Estructura del Proyecto
 
 ```
 terraform-test-railway/
-├── main.tf              # Configuración principal de Terraform
-├── dev2-variables.tf    # Variables específicas para el entorno "dev 2"
-├── variables.tf         # Definición de variables
-├── outputs.tf           # Outputs de Terraform
-├── terraform.tfvars     # Valores de variables (local)
-└── README.md           # Este archivo
+├── main.tf           # Configuración principal con recursos dinámicos
+├── variables.tf      # Definición de variables con estructura compleja
+├── outputs.tf        # Outputs informativos y documentación
+├── terraform.tfvars  # Valores específicos con notas y defaults
+└── README.md         # Esta documentación
 ```
 
-## 🚀 Características
+## ⚙️ Configuración de Secrets
 
-### MongoDB
-- ✅ Single Replica Set configurado
-- ✅ Autenticación habilitada
-- ✅ Usuario admin configurado
-- ✅ Base de datos `demo` creada
-- ✅ Keyfile para autenticación del replica set
+### Administración Centralizada
 
-### Railway
-- ✅ TCP Proxy para acceso público
-- ✅ Variables de entorno configuradas
-- ✅ Servicio Hello World incluido
+Todos los secrets se configuran en `terraform.tfvars`. El archivo `variables.tf` solo contiene ejemplos por defecto que puedes usar como plantilla.
 
-### Doppler
-- ✅ Proyecto y entorno configurados
-- ✅ Secretos sincronizados automáticamente
+### Estructura Básica
 
-## 🔧 Configuración
+Cada secret se configura usando esta estructura:
 
-### Variables de MongoDB
-- **Usuario**: `admin`
-- **Contraseña**: `password123`
-- **Base de datos**: `demo`
-- **Replica Set**: `rs0`
+```hcl
+project_secrets = {
+  nombre_proyecto = {
+    NOMBRE_SECRET = {
+      value      = "valor_del_secret"
+      note       = "Descripción clara del propósito del secret"
+      visibility = "masked"  # opcional: masked, restricted, unmasked
+    }
+  }
+}
+```
 
-### Acceso Público
-- **Dominio**: `shinkansen.proxy.rlwy.net:17461`
-- **URL**: `mongodb://admin:password123@shinkansen.proxy.rlwy.net:17461/demo?authSource=admin`
+### Ejemplo Completo en terraform.tfvars
 
-## 📋 Uso
+```hcl
+project_secrets = {
+  mi_api = {
+    DATABASE_URL = {
+      value = "postgresql://user:pass@localhost:5432/mi_db"
+      note  = "URL de conexión a la base de datos principal"
+    }
+    API_KEY = {
+      value      = "api_key_placeholder"
+      note       = "Clave API para servicios externos"
+      visibility = "restricted"  # Más seguro que "masked"
+    }
+    DEBUG_MODE = {
+      value = "true"
+      note  = "Habilitar modo debug en desarrollo"
+    }
+  }
+  
+  mi_frontend = {
+    REACT_APP_API_URL = {
+      value = "http://localhost:3001/api"
+      note  = "URL del backend para el frontend React"
+    }
+    ANALYTICS_ID = {
+      value = "GA-123456789"
+      note  = "ID de Google Analytics"
+    }
+  }
+}
+```
 
-### 1. Desplegar con Terraform
+### Características Importantes
+
+1. **Nombres dinámicos**: Los nombres de proyectos se derivan automáticamente de las keys en `project_secrets`
+2. **Secrets personalizables**: Cada proyecto puede tener cualquier combinación de secrets
+3. **Configuración centralizada**: Todo se gestiona desde `terraform.tfvars`
+4. **Valores por defecto**: `variables.tf` incluye ejemplos que puedes usar como plantilla
+
+## 🛠️ Uso
+
+### 1. Configurar el token de Doppler
+
 ```bash
-terraform init
+export DOPPLER_TOKEN="tu_token_aqui"
+```
+
+### 2. Validar la configuración
+
+```bash
+terraform validate
+```
+
+### 3. Ver el plan de ejecución
+
+```bash
 terraform plan
+```
+
+### 4. Aplicar los cambios
+
+```bash
 terraform apply
 ```
 
-### 2. Conectar con MongoDB Compass
-```
-mongodb://admin:password123@shinkansen.proxy.rlwy.net:17461/demo?authSource=admin
-```
+### 5. Ver la documentación generada
 
-### 3. Conectar con mongosh
 ```bash
-mongosh "mongodb://admin:password123@shinkansen.proxy.rlwy.net:17461/demo?authSource=admin"
+terraform output secrets_documentation
 ```
 
-### 4. Verificar Replica Set
-```javascript
-rs.status()
-rs.conf()
-```
+## 📊 Outputs Disponibles
 
-## 🎯 Outputs Disponibles
-
-- `mongodb_public_url`: URL completa de conexión
-- `mongodb_public_domain`: Dominio y puerto público
-- `mongodb_internal_url`: URL interna para Railway
-- `app_service_id`: ID del servicio Hello World
-
-## ⚙️ Requisitos
-
-- Terraform >= 1.0
-- Railway CLI
-- Doppler CLI
-- Cuenta en Railway
-- Cuenta en Doppler
+- `doppler_projects_created`: Lista de proyectos creados
+- `doppler_secrets_created`: Secrets con sus notas (sin valores)
+- `doppler_configuration_summary`: Resumen estadístico
+- `secrets_documentation`: Documentación completa de secrets
 
 ## 🔒 Seguridad
 
-- Las credenciales están configuradas en Doppler
-- El replica set usa keyfile para autenticación
-- Acceso público controlado por Railway TCP Proxy
+- Los valores por defecto son solo para development
+- Use `ignore_changes = [value]` para permitir cambios manuales
+- Los valores sensibles no se muestran en outputs
+- Configure `visibility = "restricted"` para secrets críticos
 
-## 📝 Notas
+## 📝 Agregar Nuevos Proyectos y Secrets
 
-- El proyecto usa el entorno "dev 2" existente en Railway
-- Las variables están separadas en `dev2-variables.tf` para mayor claridad
-- El replica set está configurado como PRIMARY con un solo nodo
+### Agregar un Nuevo Proyecto
 
-## 🎉 Estado
+1. Edita `terraform.tfvars`
+2. Agrega una nueva entrada en `project_secrets`:
 
-✅ **Proyecto completamente funcional**
-- MongoDB desplegado y funcionando
-- Replica set configurado correctamente
-- Acceso público habilitado
-- Operaciones CRUD funcionando
+```hcl
+project_secrets = {
+  # Proyectos existentes...
+  
+  nuevo_proyecto = {
+    DATABASE_URL = {
+      value = "postgresql://user:pass@localhost:5432/nuevo_db"
+      note  = "Base de datos para el nuevo proyecto"
+    }
+    API_SECRET = {
+      value      = "secret_key_here"
+      note       = "Clave secreta del API"
+      visibility = "restricted"
+    }
+  }
+}
+```
+
+### Agregar Secrets a Proyecto Existente
+
+1. Encuentra el proyecto en `terraform.tfvars`
+2. Agrega el nuevo secret:
+
+```hcl
+project_secrets = {
+  demo1 = {
+    # Secrets existentes...
+    
+    NUEVO_SECRET = {
+      value = "valor_inicial"
+      note  = "Descripción del nuevo secret"
+    }
+  }
+}
+```
+
+### Modificar Secrets Existentes
+
+Simplemente actualiza los valores en `terraform.tfvars`:
+
+```hcl
+DATABASE_URL = {
+  value = "postgresql://nuevo_host:5432/nueva_db"  # Nuevo valor
+  note  = "Nueva descripción actualizada"
+}
+```
+
+## 🔄 Lifecycle Management
+
+- **ignore_changes**: Los valores pueden cambiarse manualmente en Doppler
+- **prevent_destroy**: Los proyectos no se eliminan accidentalmente
+- **create_before_destroy**: Actualizaciones seguras de recursos
+
+## 🎯 Mejores Prácticas
+
+1. **Notas descriptivas**: Siempre incluye una nota clara
+2. **Valores seguros**: Usa placeholders en development
+3. **Visibilidad apropiada**: `restricted` para secrets críticos
+4. **Naming conventions**: Usa nombres descriptivos y consistentes
+5. **Documentación**: Mantén el README actualizado
+
+## 📈 Ejemplos de Proyectos
+
+### Backend API (demo1)
+- DATABASE_URL, API_KEY, JWT_SECRET, REDIS_URL, S3_BUCKET
+
+### E-commerce (demo2) 
+- DB_HOST, DB_USER, DB_PASS, EMAIL_API, STRIPE_KEY
+
+### Analytics (demo3)
+- MONGO_URI, AUTH_SECRET, WEBHOOK_URL, CDN_URL, LOG_LEVEL
+
+### Auth Service (demo4)
+- POSTGRES_URL, OAUTH_CLIENT, OAUTH_SECRET, CACHE_URL, DEBUG_MODE
+
+### Payment Gateway (demo5)
+- MYSQL_HOST, PAYMENT_KEY, SMS_API, BACKUP_URL, ENV_MODE
